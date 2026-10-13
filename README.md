@@ -81,7 +81,7 @@ The prompts below are the ones used for testing, in Italian, with an English tra
 - Case 4, classification: "Voglio sapere se un uomo ha il diabete: pesa 102 kg, glicemia superiore a 200 mg/dL, HbA1c superiore al 9%, e 66 anni di età." (*I want to know whether a man has diabetes: 102 kg, blood glucose above 200 mg/dL, HbA1c above 9%, aged 66.*)
 - Case 4, regression: "Quanto costeranno in un anno le spese mediche di una persona di 45 anni, fumatrice, con BMI 33 e due figli?" (*How much will the yearly medical costs of a 45-year-old smoker with a BMI of 33 and two children be?*)
 
-The dataset is chosen by the search the agent composes on Kaggle, so outcomes may vary between runs.
+The dataset is selected through the Kaggle search query that the agent composes, so outcomes may vary between runs.
 
 ## Known limitations
 
