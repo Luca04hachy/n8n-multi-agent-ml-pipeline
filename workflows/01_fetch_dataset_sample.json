@@ -1,0 +1,422 @@
+{
+  "name": "Fetch Dataset Sample Subworkflow",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "ownerSlug"
+            },
+            {
+              "name": "datasetSlug"
+            },
+            {
+              "name": "fileName"
+            },
+            {
+              "name": "sample_size"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -32,
+        16
+      ],
+      "id": "46e6758d-42c6-48eb-bf13-cf98aeecc393",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.fileName.toLowerCase().endsWith('.zip') }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "493d3b64-99d9-4eb2-9c14-9561ff84cee9"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ee038696-34a2-4115-a4fd-8cd0d76118af",
+                    "leftValue": "={{ $json.fileName.toLowerCase().endsWith('.csv') || $json.fileName.toLowerCase().endsWith('.tsv') }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "46478330-620f-4109-82c5-1b072c34a91c",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $binary.data.fileExtension === 'zip' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "90e8dced-7345-46bc-81f0-0670c878e6af"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "3ef205d1-5698-4caa-b002-b629575a0331",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1.1,
+      "position": [
+        848,
+        -96
+      ],
+      "id": "b536492e-3908-47ce-b3d7-d78fe214f01f",
+      "name": "Compression"
+    },
+    {
+      "parameters": {
+        "options": {
+          "delimiter": "={{ $('When Executed by Another Workflow').item.json.fileName.toLowerCase().endsWith('.tsv') ? '\\t' : ',' }}",
+          "headerRow": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        16
+      ],
+      "id": "2af7196d-d7f4-4859-933d-43c72f830f0b",
+      "name": "Extract from File",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.kaggle.com/api/v1/datasets/download/{{ $json.ownerSlug }}/{{ $json.datasetSlug }}/{{ $json.fileName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "aa148733-cc20-4525-bcf1-373bf957b8f5",
+      "name": "Download_Dataset_File",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "O2Iq7ccHUaeRBC0O",
+          "name": "Kaggle API - Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "93e74adc-5289-4f69-b966-cf64d26c5666",
+              "name": "status",
+              "value": "error",
+              "type": "string"
+            },
+            {
+              "id": "514f7515-69cc-4c98-a6a1-7c3e2158638e",
+              "name": "reason",
+              "value": "unsupported file format",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        160
+      ],
+      "id": "7866f833-1032-4f7d-861f-30a9aad33250",
+      "name": "Unsupported_Format_Error"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n     \"status\": \"error\",\n     \"reason\": \"malformed CSV formatting in source file (invalid quoting)\"\n   }\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1520,
+        112
+      ],
+      "id": "5e336e6e-6b79-4802-a477-eef325b0358c",
+      "name": "CSV_Extraction_Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: item.json,\n  binary: {\n    data: {\n      ...item.binary.data,\n      mimeType: 'text/csv',\n      fileName: 'data.csv'\n    }\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        80
+      ],
+      "id": "394dcbbb-fa61-49de-8e78-1a1607e924c0",
+      "name": "Normalize CSV"
+    },
+    {
+      "parameters": {
+        "jsCode": "const firstItem = $input.first().json;\n   if (firstItem.status === \"error\") {\n     return [{ json: firstItem }]; // passa l'errore così com'è, non tenta di processare righe\n   }\n\nconst items = $input.all();\nconst rows = items.map(i => i.json);\n\nif (rows.length === 0) {\n  return [{ json: { status: \"error\", reason: \"no rows extracted\" } }];\n}\n\n// Shuffle (Fisher-Yates) — invariato\nfor (let i = rows.length - 1; i > 0; i--) {\n  const j = Math.floor(Math.random() * (i + 1));\n  [rows[i], rows[j]] = [rows[j], rows[i]];\n}\n\nconst columns = Object.keys(rows[0]);\n\n// NUOVO: legge quante righe vuole il chiamante (Case 3 o Case 4)\nconst requestedSize = parseInt($('When Executed by Another Workflow').first().json.sample_size);\nconst targetSize = (!isNaN(requestedSize) && requestedSize > 0) ? requestedSize : 30;\n\n// NUOVO: non si può campionare più righe di quante il dataset ne abbia davvero\nconst effectiveTarget = Math.min(targetSize, rows.length);\n\nconst labelCandidates = columns.filter(c =>\n  /label|class|target|category|sentiment|spam|type/i.test(c)\n);\n\nlet sampledRows;\n\nif (labelCandidates.length > 0) {\n  const labelCol = labelCandidates[0];\n  const groups = {};\n  for (const r of rows) {\n    const v = r[labelCol];\n    if (!groups[v]) groups[v] = [];\n    groups[v].push(r);\n  }\n  const numGroups = Object.keys(groups).length;\n  const perGroup = Math.max(5, Math.ceil(effectiveTarget / numGroups)); // MODIFICATO: 30 -> effectiveTarget\n  sampledRows = Object.values(groups).flatMap(g => g.slice(0, perGroup));\n} else {\n  sampledRows = rows.slice(0, effectiveTarget); // MODIFICATO: 40 -> effectiveTarget\n}\n\nconst sampleText = [columns.join(\",\")]\n  .concat(sampledRows.map(r => columns.map(c => r[c]).join(\",\")))\n  .join(\"\\n\");\n\nreturn [{\n  json: {\n    status: \"ok\",\n    columns,\n    total_rows: rows.length,\n    sample_text: sampleText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "31bd83b4-e721-41ef-8932-ea9e4066784d",
+      "name": "Sample & Balance"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length !== 1) {\n  return [{ json: { status: \"error\", reason: \"zip contains zero or multiple files\" } }];\n}\n\nconst item = items[0];\nconst binaryKeys = Object.keys(item.binary || {});\n\nif (binaryKeys.length !== 1) {\n  return [{ json: { status: \"error\", reason: \"unexpected binary structure after decompression\" } }];\n}\n\nconst binaryKey = binaryKeys[0];\n\nreturn [\n  {\n    json: item.json,\n    binary: {\n      data: {\n        ...item.binary[binaryKey],\n        mimeType: 'text/csv',\n        fileName: 'data.csv'\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "80650ba5-fa62-43f0-95b9-b557e97d160c",
+      "name": "File Count & Normalize"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Download_Dataset_File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download_Dataset_File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unsupported_Format_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Compression",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compression": {
+      "main": [
+        [
+          {
+            "node": "File Count & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Sample & Balance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CSV_Extraction_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download_Dataset_File": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV_Extraction_Error": {
+      "main": [
+        [
+          {
+            "node": "Sample & Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize CSV": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Count & Normalize": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fb575884-0bd5-416e-9a88-d1302972c415",
+  "meta": {
+    "instanceId": "ba005495b37f372b59527a6877610607d3c1daad8f0c44f95d979d736ded7c1c"
+  },
+  "nodeGroups": [],
+  "id": "v6WrIKWGrBKk3FaG",
+  "tags": []
+}

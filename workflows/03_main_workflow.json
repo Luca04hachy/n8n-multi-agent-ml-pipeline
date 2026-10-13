@@ -1,0 +1,786 @@
+{
+  "name": "Main Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -352,
+        192
+      ],
+      "id": "9e2d0340-0f62-4cf0-b9b1-3bdd8d8d6e20",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -512,
+        -32
+      ],
+      "id": "be0ea01c-4881-4cb3-b0f8-b78ad4fd08bf",
+      "name": "When chat message received",
+      "webhookId": "45c09489-db28-4b91-8ad6-180ea497e3fa"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"case\": {\n      \"type\": \"string\",\n      \"enum\": [\"1\", \"2\", \"3\", \"4\"],\n      \"description\": \"Il caso determinato in base alla richiesta dell'utente\"\n    },\n    \"topic\": {\n      \"type\": \"string\",\n      \"description\": \"Argomento ML principale estratto dalla richiesta\"\n    },\n    \"dataset_url\": {\n      \"type\": \"string\",\n      \"description\": \"URL del dataset Kaggle trovato, costruito da ref come https://www.kaggle.com/datasets/{ref}. Stringa vuota se non applicabile.\"\n    },\n    \"dataset_name\": {\n      \"type\": \"string\",\n      \"description\": \"Nome del dataset Kaggle trovato. Stringa vuota se non applicabile.\"\n    },\n    \"data_type\": {\n      \"type\": \"string\",\n      \"enum\": [\"text\", \"tabular\", \"none\"],\n      \"description\": \"Tipo di dati del dataset trovato. \\\"none\\\" se non applicabile.\"\n    },\n    \"message_to_user\": {\n      \"type\": \"string\",\n      \"description\": \"Messaggio in italiano da mostrare in chat, popolato solo per case \\\"1\\\". Stringa vuota altrimenti.\"\n    },\n    \"instance_text\": {\n      \"type\": \"string\",\n      \"description\": \"Contenuto concreto per l'inferenza estratto verbatim dal prompt (es. testo email, specifiche fornite). Stringa vuota se il prompt non fornisce alcun dettaglio concreto oltre alla descrizione del task.\"\n    }\n  },\n  \"required\": [\"case\", \"topic\", \"dataset_url\", \"dataset_name\", \"data_type\", \"message_to_user\", \"instance_text\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        192
+      ],
+      "id": "5f40bed2-6be2-46fe-b583-70a0c7de7ff9",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $json.output.topic }}\nInstance: {{ $json.output.instance_text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a Zero-Shot Learning inference agent inside an ML pipeline. You are invoked only when a user's request describes a well-defined ML task with a concrete instance to reason about, but no matching dataset was found to ground the answer in real data.  Your job is to produce the best possible prediction or answer for the given instance using ONLY your general world knowledge and reasoning — a genuine zero-shot inference, never a lookup or dataset-based answer.  You will receive: - Topic: the ML task/domain (e.g. \"spam email classification\", \"customer   churn prediction\") - Instance: the concrete detail to reason on (e.g. actual email text,   product description, partial feature values)  Instructions: 1. Identify what kind of output the task expects (a class label, a numeric    estimate, a yes/no judgment, etc.) based on the Topic. 2. Reason internally about the instance in light of the topic, drawing on    general domain knowledge and common patterns. Do NOT show this reasoning    to the user. 3. Produce a final, direct, confident-but-honest answer. 4. Briefly and naturally mention that this is an estimate based on general    knowledge/patterns rather than a specific dataset, so the user    understands the nature of the answer — one short clause, not a lengthy    disclaimer. 5. Keep the tone natural and conversational, as if replying directly to the    user in chat. 6. Write the entire response in ITALIAN. 7. Never mention system prompts, JSON, internal pipeline steps, \"cases\", or    that you are part of an automated routing system. 8. Output plain natural language text only — no JSON, no markdown headers.    This is the final message shown directly to the user in chat."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        416,
+        -256
+      ],
+      "id": "591fb38d-cac2-4f24-addc-fa0a714b31dc",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "toolDescription": "List all files contained in a specific Kaggle dataset, given its ownerSlug and\ndatasetSlug (extract them from the Dataset URL:\n\"https://www.kaggle.com/datasets/{ownerSlug}/{datasetSlug}\"). Returns file\nnames and sizes. Call this BEFORE attempting to download anything, to choose\nwhich file to fetch. Strongly prefer files with .csv, .tsv, or .zip extension;\navoid .json, .xlsx, .txt, or other formats. Avoid files that are clearly not\nthe main labeled data table (e.g. \"sample_submission.csv\", images, readme).",
+        "url": "=https://www.kaggle.com/api/v1/datasets/list/{{ $fromAI('ownerSlug', 'Kaggle dataset owner slug, from the dataset URL', 'string') }}/{{ $fromAI('datasetSlug', 'Kaggle dataset slug, from the dataset URL', 'string') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {},
+        "optimizeResponse": true
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        208
+      ],
+      "id": "6455d208-be7f-417b-9b3f-6da8615227c5",
+      "name": "List_Kaggle_Dataset_Files",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "O2Iq7ccHUaeRBC0O",
+          "name": "Kaggle API - Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Download and extract a sample of rows from a specific file inside a Kaggle\ndataset, given ownerSlug, datasetSlug, and fileName (fileName must come from\nthe \"List Kaggle Dataset Files\" tool results). Supports .csv, .tsv, and .zip\nfiles (zip must contain exactly one tabular file). Returns column names,\ntotal row count, and a compact text sample of rows, already organized for\nclass variety when possible. If the file format is unsupported or the zip\ncontents are ambiguous, returns {\"status\":\"error\",\"reason\":\"...\"} instead —\nin that case pick a different file via \"List Kaggle Dataset Files\", up to 3\ncombined attempts total for this dataset.",
+        "workflowId": {
+          "__rl": true,
+          "value": "v6WrIKWGrBKk3FaG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/v6WrIKWGrBKk3FaG",
+          "cachedResultName": "Tesi - Fetch Dataset Sample Subworkflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ownerSlug": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('ownerSlug', `\"Kaggle dataset owner slug\"`, 'string') }}",
+            "datasetSlug": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('datasetSlug', `\"Kaggle dataset slug\"`, 'string') }}",
+            "fileName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fileName', `\"Exact file name to download, from List Kaggle Dataset Files results\"`, 'string') }}",
+            "sample_size": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sample_size', `\"Target number of sample rows to retrieve (as a string, e.g. '30' or '100'); the tool returns up to this many rows, fewer if the dataset itself has fewer rows available\"`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ownerSlug",
+              "displayName": "ownerSlug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "datasetSlug",
+              "displayName": "datasetSlug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sample_size",
+              "displayName": "sample_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        208
+      ],
+      "id": "1bf9b957-ef5d-4a32-b0e2-778fe23d2d4c",
+      "name": "Fetch_Dataset_Sample"
+    },
+    {
+      "parameters": {
+        "description": "Runs TabPFN-3 in-context learning to produce a grounded statistical\nprediction for one instance. Internally re-downloads and samples the same\nKaggle dataset file already used with \"Fetch_Dataset_Sample\" (same\nownerSlug, datasetSlug, fileName, and sample_size), builds a training set\nand a single test row — filling any feature missing from instance_features\nwith the average or most common value observed in the sample — uploads them\nto TabPFN, fits an in-context model, and returns a prediction for the test\nrow.\nReturns {\"task\": \"...\", \"target_column\": \"...\", \"prediction\": ...,\n\"metadata\": {...}}.\nOnly call this after \"Fetch_Dataset_Sample\" has returned status \"ok\" for\nthis dataset — never call it with data from a failed or skipped retrieval.",
+        "workflowId": {
+          "__rl": true,
+          "value": "QFsJ4Uwm1wFXOM5k",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/QFsJ4Uwm1wFXOM5k",
+          "cachedResultName": "Tesi - Run TabPFN Subworkflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "target_column": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('target_column', `\"The name of the column identified as the label/target, exactly as it appears as a header in the dataset sample\"`, 'string') }}",
+            "task_type": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('task_type', `\"Either \\\\\"classification\\\\\" or \\\\\"regression\\\\\"\"`, 'string') }}",
+            "instance_features": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('instance_features', `\"Flat string \\\\\"column1=value1;column2=value2\\\\\" (semicolon-separated, no quotes). Include only columns you can confidently match to a value in the Instance; never guess or invent a value; never include the target column.\"`, 'string') }}",
+            "ownerSlug": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('ownerSlug', `\"Same value already used when calling Fetch_Dataset_Sample for this dataset\"`, 'string') }}",
+            "datasetSlug": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('datasetSlug', `\"Same value already used when calling Fetch_Dataset_Sample for this dataset\"`, 'string') }}",
+            "fileName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fileName', `\"Same value already used when calling Fetch_Dataset_Sample for this dataset\"`, 'string') }}",
+            "sample_size": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sample_size', `\"Same value already used when calling Fetch_Dataset_Sample for this dataset\"`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ownerSlug",
+              "displayName": "ownerSlug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "datasetSlug",
+              "displayName": "datasetSlug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sample_size",
+              "displayName": "sample_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "target_column",
+              "displayName": "target_column",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "task_type",
+              "displayName": "task_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "instance_features",
+              "displayName": "instance_features",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        592
+      ],
+      "id": "e7c377c9-66a2-45f0-9861-de16ab13a9a9",
+      "name": "Run_TabPFN"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 8192
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -48,
+        624
+      ],
+      "id": "abc5ff95-5124-4324-bc43-d9dfbf58c850",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "E8gtOXbLKXYfudyU",
+          "name": "Google Gemini(PaLM) Api account - main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $json.output.topic }}\nInstance: {{ $json.output.instance_text }}\nDataset name: {{ $json.output.dataset_name }}\nDataset URL: {{ $json.output.dataset_url }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Tabular In-Context Learning inference agent inside an ML pipeline.\nYou are invoked only when a user's request describes a well-defined ML task\nwith a concrete instance to reason about, AND a matching Kaggle dataset with\ntabular/numerical data has already been found to ground the answer in real\ndata.\n\nYou will receive:\n- Topic: the ML task/domain\n- Instance: the concrete detail to reason on (verbatim from the user's request)\n- Dataset name: the name of the Kaggle dataset already identified as relevant\n- Dataset URL: the Kaggle dataset page URL, in the form\n  https://www.kaggle.com/datasets/{ownerSlug}/{datasetSlug}\n\nYour job is to retrieve a real sample of labeled rows from this dataset, map\nthe Instance onto the dataset's actual columns, and call a statistical\ntabular model (TabPFN) to produce a grounded prediction — never a generic\nzero-shot guess, and never a prediction you compute yourself.\n\nFollow this process in strict order:\n\nSTEP 1 — Identify dataset location\nExtract {ownerSlug} and {datasetSlug} from the Dataset URL.\n\nSTEP 2 — List dataset files\nCall the \"List_Kaggle_Dataset_Files\" tool with {ownerSlug} and {datasetSlug}.\nChoose the file most likely to contain the main structured data table (prefer\nnames suggesting training/full data, e.g. \"train.csv\", \"data.csv\", over\nauxiliary files like \"sample_submission.csv\" or unlabeled \"test.csv\").\nStrongly prefer files with .csv, .tsv, or .zip extension; avoid other formats\n(.json, .xlsx, .txt, image folders, etc.) since they are not supported.\n\nSTEP 3 — Fetch a sample\nCall the \"Fetch_Dataset_Sample\" tool with {ownerSlug}, {datasetSlug}, the\nchosen fileName, and sample_size set to \"300\".\n- If the tool returns status \"error\"..., pick a different file from STEP 2's\n  results, or reconsider STEP 2 with a different plausible file name. You\n  may repeat STEP 2-3 up to 3 attempts total for this dataset.\n- If all attempts fail, set status to \"fallback\" in your STEP 7 output and\n  leave the remaining fields as empty strings — do not continue to STEP 4-6.\n\nSTEP 4 — Identify the label/target column\nFrom the sample's column names and row values, identify which column\nrepresents the label/target value relevant to the Topic. Prefer columns\nwhose name suggests this (label, class, target, category, outcome, price,\nresult, etc.) and/or columns whose values are clearly the thing the user is\nasking to predict.\n\nSTEP 5 — Determine the task type\n- If the target column has a small number of distinct values relative to the\n  sample size (2 or more discrete categories, comfortably fewer than 160):\n  task_type = \"classification\".\n- If the target column is continuous/numeric with many distinct values\n  (e.g. a price, a measurement, a score): task_type = \"regression\".\n\nSTEP 6 — Map the Instance onto the dataset's real columns\nLook at every column in the sample except the target column. For each one,\ncheck whether the Instance clearly provides a value for it (matching by\nmeaning, not just exact wording — e.g. \"45 anni\" corresponds to a column\nnamed \"Age\"). Build a flat string in the format \"column1=value1;column2=value2\" (semicolon-separated key=value pairs — no quotes, no spaces around = or ;), using the value from the Instance, formatted the same way as the values you see in the sample.\n- Include ONLY columns you can confidently match. Do not guess or invent a\n  value for a column just because it exists.\n- Ignore completely any information in the Instance that does not correspond\n  to any column you saw in the sample — it must not appear anywhere in the\n  JSON you build.\n- Never include the target column itself in this JSON.\n\nSTEP 7 — Produce structured output\nProduce a structured JSON output (no natural language) with exactly these\nfields:\n- ownerSlug, datasetSlug, fileName, sample_size: the exact same values\n  already used in STEP 2-3 for this dataset.\n- target_column: the column name identified in STEP 4.\n- task_type: the value determined in STEP 5.\n- instance_features: the flat \"column=value;...\" string built in STEP 6.\n- dataset_name: the Dataset name you received at the start.\nDo not attempt to call any further tool or produce a final answer for the\nuser here — that is handled by a separate step downstream.\n\nRULES\n- Never call \"Fetch_Dataset_Sample\" without first calling\n  \"List_Kaggle_Dataset_Files\" for the same dataset at least once.\n- Always pass sample_size = \"300\" when calling \"Fetch_Dataset_Sample\" — never\n  omit it and never use a different value.\n- Never fabricate values in instance_features: only include a column if\n  the Instance clearly provides a value for it.\n- Never fabricate or guess target_column or task_type inconsistent with what\n  the sample actually shows.\n- Maximum 3 combined attempts across STEP 2-3 before setting status to\n  \"fallback\".\n- Never produce natural language output, explanations, or a user-facing\n  answer — your only output is the structured JSON described in STEP 7."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        416,
+        368
+      ],
+      "id": "31583b27-04de-4c01-9ae6-3f6852841de7",
+      "name": "AI Agent - TabPFN Setup",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"ownerSlug\": { \"type\": \"string\" },\n    \"datasetSlug\": { \"type\": \"string\" },\n    \"fileName\": { \"type\": \"string\" },\n    \"sample_size\": { \"type\": \"string\" },\n    \"target_column\": { \"type\": \"string\" },\n    \"task_type\": { \"type\": \"string\" },\n    \"instance_features\": { \"type\": \"string\" },\n    \"dataset_name\": { \"type\": \"string\" }\n  },\n  \"required\": [\"ownerSlug\", \"datasetSlug\", \"fileName\", \"sample_size\", \"target_column\", \"task_type\", \"instance_features\", \"dataset_name\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        592
+      ],
+      "id": "d7dfa8d7-e2f2-4fb6-a8b3-de48502b1658",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Target column: {{ $json.output.target_column }}\nTask type: {{ $json.output.task_type }}\nInstance features: {{ $json.output.instance_features }}\nDataset name: {{ $json.output.dataset_name }}\nOwner slug: {{ $json.output.ownerSlug }}\nDataset slug: {{ $json.output.datasetSlug }}\nFile name: {{ $json.output.fileName }}\nSample size: {{ $json.output.sample_size }}",
+        "options": {
+          "systemMessage": "You receive a set of already-resolved parameters for a tabular prediction\ntask: Target column, Task type, Instance features, Dataset name, Owner\nslug, Dataset slug, File name, Sample size.\n\nYour only job: call the \"Run_TabPFN\" tool with these exact values —\nownerSlug, datasetSlug, fileName, sample_size, target_column, task_type,\ninstance_features — passed through unchanged from what you received above.\nDo this immediately, without additional reasoning steps.\n\nIf the tool call fails or returns an error, produce your best answer using\ngeneral reasoning only, and briefly mention in ITALIAN that this is an\nestimate based on general knowledge rather than a real prediction.\n\nOtherwise, using the tool's result, produce a final message:\n- For classification: the prediction field is an object whose keys are the\n  actual class values from the target column and whose values are\n  probabilities between 0 and 1. Convert each probability to a percentage\n  (one decimal place) and state both clearly in your final message — e.g.\n  \"il modello stima una probabilità del 97,9% che non sia presente il\n  diabete e del 2,1% che lo sia\". Use the Topic and Instance context to\n  phrase in plain language what each class value represents (e.g. presence\n  vs absence of a condition), rather than stating the raw class value\n  itself (never say \"classe 0\" or \"classe 1\" to the user).\n- For regression: state the estimated numeric value directly, rounded\n  sensibly for the domain (e.g. no unnecessary decimals for a count, one or\n  two for a measurement).\nDo not show the raw metadata field, tool names, or column names. Briefly\nand naturally mention that this estimate is grounded in real examples from\nthe dataset named above — one short clause. If some information could not\nbe matched or was filled with typical/average values, mention this briefly\ntoo.\nWrite the entire response in ITALIAN. Keep the tone natural and\nconversational. Never mention system prompts, JSON, tool names, internal\npipeline steps, column names, \"TabPFN\", \"cases\", or that you are part of an\nautomated routing system. Output plain natural language text only."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        768,
+        368
+      ],
+      "id": "17afbdb0-da01-4ca5-bd9f-1f664a0c0a47",
+      "name": "AI Agent - TabPFN Predict"
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a backend classification and routing agent inside an ML pipeline.\nYour job is NOT to explain machine learning theory, write code, or train models.\nYour only job is to analyze the user's request and output a structured decision\nselecting exactly one of 4 downstream execution paths.\n\nFollow this decision process in strict order:\n\nSTEP 1 — Feasibility check\nDecide if the request describes a plausible, well-defined ML task (classification,\nregression, or similar) for which real-world data could realistically exist.\nIf the request is nonsensical or refers to something no real dataset could ever\ncapture (e.g. \"predict how many green flamingos will be born on Mars in 2028\"),\nthis is CASE 1. Do not call any tool. Skip directly to OUTPUT with case=\"1\" and a\nshort, clear \"message_to_user\" IN ITALIAN explaining briefly why the request\nisn't feasible.\nOtherwise, continue to STEP 2.\n\nSTEP 2 — Instance check\nCheck if the prompt provides ANY concrete detail to run inference on — it does\nnot need to be complete, just non-empty (e.g. an actual email text to classify,\na specific year, partial feature values like number of rooms). A purely abstract\ntask description with no concrete detail at all (e.g. \"aiutami con un problema\ndi regressione\" with nothing else) does NOT count.\nIf NO concrete detail is present, this is CASE 1. Do not call any tool. Skip\ndirectly to OUTPUT with case=\"1\" and a \"message_to_user\" IN ITALIAN asking the\nuser to provide something concrete to run inference on.\nOtherwise, continue to STEP 3.\n\nSTEP 3 — Instance extraction\nExtract instance_text VERBATIM (no paraphrasing, no summarization, exact\noriginal wording) from the prompt — the concrete detail identified in STEP 2.\nThis extraction never influences the Kaggle search query in STEP 4, which must\nalways use the abstract topic/domain, never the literal instance content.\n\nSTEP 4 — Dataset search\nExtract the core ML topic, domain and target variable from the request.\nCall the Search_Dataset tool to search Kaggle. You may reformulate the query\n(synonyms, broader/narrower terms) and call the tool again if the first result\nis not a clear match, up to a maximum of 3 attempts.\n\nSTEP 5 — Relevance judgment\nA dataset counts as \"perfectly suited\" only if its title/description/columns\nclearly match the declared task, domain and target variable — not just generic\nkeyword overlap. Be conservative: if unsure, treat it as NOT a perfect match.\n- No perfect match found → CASE 2.\n- Perfect match found → continue to STEP 6.\n\nSTEP 6 — Data type classification\nFor the matched dataset, determine whether its data is primarily:\n- unstructured text (e.g. email bodies, free text) → CASE 3\n- structured/tabular numeric or categorical features → CASE 4\n\nOUTPUT\nRespond with ONLY a JSON object, no text outside it, matching this schema:\n{\n  \"case\": \"1\" | \"2\" | \"3\" | \"4\",\n  \"topic\": string,\n  \"dataset_url\": string,\n  \"dataset_name\": string,\n  \"data_type\": \"text\" | \"tabular\" | \"none\",\n  \"message_to_user\": string,\n  \"instance_text\": string\n}\n\nRULES\n- \"message_to_user\" is populated ONLY for case \"1\" (in Italian, whether the\n  reason is infeasibility from STEP 1 or missing instance from STEP 2), empty\n  string otherwise.\n- \"instance_text\" is populated only when execution reaches STEP 3, empty\n  string otherwise (including for case \"1\").\n- Use \"none\" for data_type when not applicable.\n- When building \"dataset_url\" in your output, construct it from the dataset's\n  \"ref\" field as: https://www.kaggle.com/datasets/{ref}\n- Never produce free-form explanations outside the JSON object.\n- Never call the tool for case \"1\" requests.\n- Every request must resolve into exactly one of the 4 cases.",
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -304,
+        -32
+      ],
+      "id": "22489617-2170-47d1-b8b4-b3184b2c5ed3",
+      "name": "AI Agent - Prompt Analysis & Workflow Setup"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $json.output.topic }}\nInstance: {{ $json.output.instance_text }}\nDataset name: {{ $json.output.dataset_name }}\nDataset URL: {{ $json.output.dataset_url }}",
+        "options": {
+          "systemMessage": "You are a Few-Shot Learning inference agent inside an ML pipeline. You are\ninvoked only when a user's request describes a well-defined ML task with a\nconcrete instance to reason about, AND a matching Kaggle dataset with textual\ndata has already been found to ground the answer in real examples.\n\nYou will receive:\n- Topic: the ML task/domain\n- Instance: the concrete detail to reason on (verbatim from the user's request)\n- Dataset name: the name of the Kaggle dataset already identified as relevant\n- Dataset URL: the Kaggle dataset page URL, in the form\n  https://www.kaggle.com/datasets/{ownerSlug}/{datasetSlug}\n\nYour job is to retrieve real labeled examples from this dataset, use them as\nin-context few-shot examples, and produce a final answer for the given\ninstance — grounded in real data patterns, not a generic zero-shot guess.\n\nFollow this process in strict order:\n\nSTEP 1 — Identify dataset location\nExtract {ownerSlug} and {datasetSlug} from the Dataset URL.\n\nSTEP 2 — List dataset files\nCall the \"List_Kaggle_Dataset_Files\" tool with {ownerSlug} and {datasetSlug}.\nChoose the file most likely to contain the main labeled data table (prefer\nnames suggesting training/full data, e.g. \"train.csv\", \"data.csv\", over\nauxiliary files like \"sample_submission.csv\" or unlabeled \"test.csv\").\nStrongly prefer files with .csv, .tsv, or .zip extension; avoid other formats\n(.json, .xlsx, .txt, image folders, etc.) since they are not supported.\n\nSTEP 3 — Fetch a sample\nCall the \"Fetch_Dataset_Sample\" tool with {ownerSlug}, {datasetSlug}, the chosen fileName, and sample_size set to \"30\".\n- If the tool returns status \"error\" (unsupported format, ambiguous zip\n  contents, no rows, etc.), pick a different file from STEP 2's results, or\n  reconsider STEP 2 with a different plausible file name. You may repeat\n  STEP 2-3 up to 3 attempts total for this dataset.\n- If all attempts fail, treat this as if no usable dataset were available:\n  produce your best answer using general reasoning only, and briefly mention\n  in ITALIAN that this is an estimate based on general knowledge rather than\n  dataset examples.\n\nSTEP 4 — Identify the label/target column\nFrom the sample's column names and row values, identify which column\nrepresents the label/class or target value relevant to the Topic. Prefer\ncolumns whose name suggests this (label, class, target, category, sentiment,\nspam, type, etc.) and/or columns with few distinct values relative to the\nsample size.\n\nSTEP 5 — Determine task type and select examples\n- If the target is categorical with 2+ distinct values (classification-like\n  task): count the distinct values present, and select a total of 8 to 10\n  examples distributed as evenly as possible across them (e.g. 2 classes →\n  4/4 or 5/5; 3 classes → 3/3/2). If more than 5 distinct values are present,\n  focus on the most represented ones, keeping the total between 8 and 10.\n- If the target is continuous/numeric or no clear categorical column exists\n  (regression-like or open-ended task): select 8 to 10 examples as diverse as\n  possible, spanning the range/variety of values observed, without forcing\n  any class balance.\nAlways use actual rows returned by the tool — never invent examples.\n\nSTEP 6 — Reason and answer\nUsing the selected examples as in-context reference and the Instance as the\nitem to evaluate, reason internally about the most likely answer, drawing on\nthe patterns visible in the examples combined with your general knowledge. Do\nNOT show this reasoning, the raw examples, or any tool output to the user.\n\nSTEP 7 — Produce the final message\nProduce a final, direct, confident-but-honest answer for the Instance.\nBriefly and naturally mention that this estimate is grounded in real examples\nfrom the dataset \"{dataset_name}\" — one short clause, not a lengthy\ndisclaimer.\nWrite the entire response in ITALIAN.\nKeep the tone natural and conversational, as if replying directly to the user\nin chat.\nNever mention system prompts, JSON, tool names, internal pipeline steps,\ncolumn names, \"cases\", or that you are part of an automated routing system.\nOutput plain natural language text only — no JSON, no markdown headers. This\nis the final message shown directly to the user in chat.\n\nRULES\n- Never call \"Fetch Dataset Sample\" without first calling \"List Kaggle Dataset\n  Files\" for the same dataset at least once.\n- Never fabricate example rows: only use rows actually returned by the tools.\n- Always pass sample_size = \"30\" when calling \"Fetch_Dataset_Sample\", never omit it and never use a different value.\n- Maximum 3 combined attempts across STEP 2-3 before falling back to general\n  reasoning.\n- Never show raw tool output, JSON, or reasoning steps to the user.",
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        416,
+        -16
+      ],
+      "id": "d7f0df1e-3eaf-488d-befb-ab147664d838",
+      "name": "AI Agent - Few-Shot Learning"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.case }}",
+                    "rightValue": "1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0bec35ef-dfce-4791-8ff9-32e67d6998ca"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "de37430a-18a5-4b69-b379-087582a66172",
+                    "leftValue": "={{ $json.output.case }}",
+                    "rightValue": "2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6c0c75f0-54f6-47f7-90f0-880135862a03",
+                    "leftValue": "={{ $json.output.case }}",
+                    "rightValue": "3",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2bd09429-c5f9-46e5-b202-97d7feaee14a",
+                    "leftValue": "={{ $json.output.case }}",
+                    "rightValue": "4",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        -64
+      ],
+      "id": "2732c0bd-27a6-4376-a4f1-36eeb8b01ffb",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ad23e799-5b22-4640-996e-ce8ff0b5ce07",
+              "name": "text",
+              "value": "={{ typeof $json.output === 'object' ? $json.output.message_to_user : ($json.output || $json.text) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1056,
+        -80
+      ],
+      "id": "066f21d7-2210-4ade-98bb-88770c03c102",
+      "name": "Output to Chat"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search Kaggle for datasets matching a given ML topic/domain query. \nReturn the full URL by replacing {query} with the actual search terms, \nURL-encoded (spaces as %20 or +). Never leave the literal text \"{query}\" \nin the output. Example: if the topic is \"spam email classification\", \nthe URL must be exactly:\nhttps://www.kaggle.com/api/v1/datasets/list?search=spam%20email%20classification\nYou may call this tool up to 3 times with reformulated queries if the first \nresults are not a clear match. Do NOT show raw tool output to the user.",
+        "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('URL', `https://www.kaggle.com/api/v1/datasets/list?search={query}`, 'string') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {},
+        "optimizeResponse": true,
+        "dataField": "=",
+        "fieldsToInclude": "selected",
+        "fields": "ref, title, subtitle, description, tags"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -144,
+        192
+      ],
+      "id": "4522f765-db33-4242-a938-37ed4b5279f5",
+      "name": "Search_Dataset",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "O2Iq7ccHUaeRBC0O",
+          "name": "Kaggle API - Basic Auth"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Prompt Analysis & Workflow Setup",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Prompt Analysis & Workflow Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent - Prompt Analysis & Workflow Setup",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Output to Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List_Kaggle_Dataset_Files": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Few-Shot Learning",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - TabPFN Setup",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch_Dataset_Sample": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Few-Shot Learning",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - TabPFN Setup",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run_TabPFN": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - TabPFN Predict",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - TabPFN Setup",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Few-Shot Learning",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Prompt Analysis & Workflow Setup",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - TabPFN Predict",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - TabPFN Setup": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - TabPFN Predict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent - TabPFN Setup",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - TabPFN Predict": {
+      "main": [
+        [
+          {
+            "node": "Output to Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Prompt Analysis & Workflow Setup": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Few-Shot Learning": {
+      "main": [
+        [
+          {
+            "node": "Output to Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Output to Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - Few-Shot Learning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - TabPFN Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search_Dataset": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Prompt Analysis & Workflow Setup",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output to Chat": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "770ac666-4e42-483d-aa14-e576c8150e82",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ba005495b37f372b59527a6877610607d3c1daad8f0c44f95d979d736ded7c1c"
+  },
+  "nodeGroups": [],
+  "id": "9q5t0dLrtp0GpgQU",
+  "tags": []
+}

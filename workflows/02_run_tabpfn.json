@@ -1,0 +1,466 @@
+{
+  "name": "Run TabPFN Subworkflow",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "ownerSlug"
+            },
+            {
+              "name": "datasetSlug"
+            },
+            {
+              "name": "fileName"
+            },
+            {
+              "name": "sample_size"
+            },
+            {
+              "name": "target_column"
+            },
+            {
+              "name": "task_type"
+            },
+            {
+              "name": "instance_features"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        0
+      ],
+      "id": "2bf97e56-e543-43eb-bf76-e60e6d3d8b0f",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.priorlabs.ai/tabpfn/prepare_train_set_upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"x_train_info\": { \"format\": \"csv\" },\n    \"y_train_info\": { \"format\": \"csv\" }\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        784,
+        0
+      ],
+      "id": "c773ebed-9b93-4f65-b8fd-6fbcd9a7217b",
+      "name": "HTTP Request - Prepare Train Upload",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "O2Iq7ccHUaeRBC0O",
+          "name": "Kaggle API - Basic Auth"
+        },
+        "httpHeaderAuth": {
+          "id": "0RHdcdT9cYZq4n4R",
+          "name": "Header Auth account - Prior Labs TabPFN"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.x_train_info.signed_urls[0] }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.x_train_info.required_headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/csv",
+        "body": "={{ $('Build Train/Test CSV').first().json.x_train_csv }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "a01a227f-d73d-4c85-aa67-98a56f8ac949",
+      "name": "HTTP Request - PUT X_train"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('HTTP Request - Prepare Train Upload').first().json.y_train_info.signed_urls[0] }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($('HTTP Request - Prepare Train Upload').first().json.y_train_info.required_headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/csv",
+        "body": "={{ $('Build Train/Test CSV').first().json.y_train_csv }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1232,
+        0
+      ],
+      "id": "3312f9a8-4eb3-409f-ae71-1e151f08492b",
+      "name": "HTTP Request - PUT Y_train"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.priorlabs.ai/tabpfn/fit",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"train_set_upload_id\": \"{{ $('HTTP Request - Prepare Train Upload').first().json.train_set_upload_id }}\",\n    \"task\": \"{{ $('Build Train/Test CSV').first().json.task }}\"\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "bc3ce8e4-20f8-4830-91d0-eb6ba03cc077",
+      "name": "HTTP Request - Fit",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0RHdcdT9cYZq4n4R",
+          "name": "Header Auth account - Prior Labs TabPFN"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.priorlabs.ai/tabpfn/prepare_test_set_upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"fitted_train_set_id\": \"{{ $('HTTP Request - Fit').first().json.fitted_train_set_id }}\",\n    \"x_test_info\": { \"format\": \"csv\" }\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1680,
+        0
+      ],
+      "id": "02235a4a-ae17-44fc-b17d-8cb49004f043",
+      "name": "HTTP Request - Prepare Test Upload",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0RHdcdT9cYZq4n4R",
+          "name": "Header Auth account - Prior Labs TabPFN"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.x_test_info.signed_urls[0] }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.x_test_info.required_headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/csv",
+        "body": "={{ $('Build Train/Test CSV').first().json.x_test_csv }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1904,
+        0
+      ],
+      "id": "c00fe3f3-ff1d-452a-be46-60eb9a06af50",
+      "name": "HTTP Request - PUT X_test"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.priorlabs.ai/tabpfn/predict",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"test_set_upload_id\": \"{{ $('HTTP Request - Prepare Test Upload').item.json.test_set_upload_id }}\",\n    \"fitted_train_set_id\": \"{{ $('HTTP Request - Fit').item.json.fitted_train_set_id }}\",\n    \"task_config\": {\n      \"task\": \"{{ $('Build Train/Test CSV').item.json.task }}\",\n      \"predict_params\": {\n        \"output_type\": \"{{ $('Build Train/Test CSV').item.json.task === 'classification' ? 'probas' : 'mean' }}\"\n      }\n    }\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2128,
+        0
+      ],
+      "id": "2844e815-3e56-49d2-9ea5-982897203ee2",
+      "name": "HTTP Request - Predict",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0RHdcdT9cYZq4n4R",
+          "name": "Header Auth account - Prior Labs TabPFN"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const predictResult = $input.first().json;\nconst buildData = $('Build Train/Test CSV').first().json;\nconst parseData = $('Parse & Compute Stats').first().json;\n\nreturn [{\n  json: {\n    task: buildData.task,\n    target_column: parseData.targetColumn,\n    prediction: predictResult.prediction,\n    metadata: predictResult.metadata\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        0
+      ],
+      "id": "92a91704-e693-4337-acf4-2800fa232de5",
+      "name": "Format Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst { rows, featureColumns, targetColumn, columnStats, task_type } = data;\n\n// X_train: tutte le righe campionate, solo colonne feature\nconst header = featureColumns.join(\",\");\nconst xTrainRows = rows.map(r => featureColumns.map(c => r[c]).join(\",\"));\nconst x_train_csv = [header, ...xTrainRows].join(\"\\n\");\n\n// y_train: solo la colonna target\nconst y_train_csv = [targetColumn, ...rows.map(r => r[targetColumn])].join(\"\\n\");\n\n// X_test: singola riga, mapping LLM + fallback su media/moda\nconst instanceFeatures = {};\nconst raw = (data.instance_features || \"\").trim();\nif (raw.length > 0) {\n  raw.split(\";\").forEach(pair => {\n    const idx = pair.indexOf(\"=\");\n    if (idx > -1) {\n      const key = pair.slice(0, idx).trim();\n      const value = pair.slice(idx + 1).trim();\n      if (key) instanceFeatures[key] = value;\n    }\n  });\n}\n\nconst testRowValues = featureColumns.map(col => {\n  const provided = instanceFeatures[col];\n  const isUsable = provided !== undefined && provided !== null && provided !== \"\";\n  return isUsable ? provided : columnStats[col].fallback;\n  // Nota: le chiavi di instanceFeatures che NON corrispondono a nessuna\n  // featureColumn vengono semplicemente non lette qui sopra -> ignorate.\n});\nconst x_test_csv = [header, testRowValues.join(\",\")].join(\"\\n\");\n\nreturn [{\n  json: {\n    x_train_csv,\n    y_train_csv,\n    x_test_csv,\n    task: task_type\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "2bc74ce5-b286-432d-b241-c8f4e45d5006",
+      "name": "Build Train/Test CSV"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sampleResult = $input.first().json; // output del nodo Execute Workflow\n\nif (sampleResult.status !== \"ok\") {\n  throw new Error(\"Fetch_Dataset_Sample (re-fetch interno) fallito: \" + (sampleResult.reason || \"motivo sconosciuto\"));\n}\n\nconst trigger = $('When Executed by Another Workflow').first().json;\n\nconst raw = sampleResult.sample_text;\nconst lines = raw.trim().split(\"\\n\");\nconst columns = lines[0].split(\",\");\nconst allRows = lines.slice(1).map(line => {\n  const values = line.split(\",\");\n  const obj = {};\n  columns.forEach((col, i) => { obj[col] = values[i]; });\n  return obj;\n});\n\nconst targetColumn = trigger.target_column;\n\n// NUOVO: scarta le righe dove il target è mancante/vuoto — TabPFN rifiuta\n// una coppia X_train/y_train con conteggi di riga diversi, e righe con\n// target vuoto produrrebbero esattamente questo disallineamento.\nconst rows = allRows.filter(r => r[targetColumn] !== undefined && r[targetColumn].trim() !== \"\");\n\nif (rows.length === 0) {\n  throw new Error(\"Nessuna riga del campione ha un valore valido per la colonna target '\" + targetColumn + \"'\");\n}\n\nconst featureColumns = columns.filter(c => c !== targetColumn);\n\nconst columnStats = {};\nfor (const col of featureColumns) {\n  const values = rows.map(r => r[col]).filter(v => v !== undefined && v !== \"\");\n  const numericValues = values.map(v => parseFloat(v)).filter(v => !isNaN(v));\n  if (values.length > 0 && numericValues.length === values.length) {\n    const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;\n    columnStats[col] = { type: \"numeric\", fallback: mean };\n  } else {\n    const freq = {};\n    values.forEach(v => { freq[v] = (freq[v] || 0) + 1; });\n    const mode = Object.keys(freq).reduce((a, b) => freq[a] > freq[b] ? a : b, values[0] || \"\");\n    columnStats[col] = { type: \"categorical\", fallback: mode };\n  }\n}\n\nreturn [{\n  json: {\n    rows, columns, featureColumns, targetColumn, columnStats,\n    task_type: trigger.task_type,\n    instance_features: trigger.instance_features\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        0
+      ],
+      "id": "1b224ecf-52da-432e-81a3-05ceb9cef472",
+      "name": "Parse & Compute Stats"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "v6WrIKWGrBKk3FaG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/v6WrIKWGrBKk3FaG",
+          "cachedResultName": "Fetch Dataset Sample Subworkflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ownerSlug": "={{ $json.ownerSlug }}",
+            "datasetSlug": "={{ $json.datasetSlug }}",
+            "fileName": "={{ $json.fileName }}",
+            "sample_size": "={{ $json.sample_size }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ownerSlug",
+              "displayName": "ownerSlug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "datasetSlug",
+              "displayName": "datasetSlug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sample_size",
+              "displayName": "sample_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        112,
+        0
+      ],
+      "id": "fc033010-aa2d-481f-affe-7074a222d7e5",
+      "name": "Call 'Fetch Dataset Sample Subworkflow'"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Call 'Fetch Dataset Sample Subworkflow'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Prepare Train Upload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - PUT X_train",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - PUT X_train": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - PUT Y_train",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - PUT Y_train": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Fit": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Prepare Test Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Prepare Test Upload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - PUT X_test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - PUT X_test": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Predict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Predict": {
+      "main": [
+        [
+          {
+            "node": "Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Train/Test CSV": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Prepare Train Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Compute Stats": {
+      "main": [
+        [
+          {
+            "node": "Build Train/Test CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Fetch Dataset Sample Subworkflow'": {
+      "main": [
+        [
+          {
+            "node": "Parse & Compute Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1f617485-1708-4a89-bcb2-d9df0f3dd270",
+  "meta": {
+    "instanceId": "ba005495b37f372b59527a6877610607d3c1daad8f0c44f95d979d736ded7c1c"
+  },
+  "nodeGroups": [],
+  "id": "QFsJ4Uwm1wFXOM5k",
+  "tags": []
+}

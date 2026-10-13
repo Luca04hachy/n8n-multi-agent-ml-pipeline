@@ -1,0 +1,19 @@
+# Secrets and local configuration
+.env
+*.pem
+*.key
+
+# n8n credential exports (even if encrypted, they must not be published)
+credentials*.json
+**/credentials/
+
+# Local n8n data, if mounted as a folder
+n8n_data/
+.n8n/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

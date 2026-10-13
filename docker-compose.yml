@@ -1,0 +1,20 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-stable}
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Rome}
+      - TZ=${GENERIC_TIMEZONE:-Europe/Rome}
+      # Chiave con cui n8n cifra le credenziali salvate. Generala una volta
+      # (es. `openssl rand -hex 32`) e non cambiarla piu' su una stessa istanza.
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in the .env file}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      # Persistenza di workflow, credenziali ed esecuzioni.
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
