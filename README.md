@@ -24,7 +24,7 @@ All paths converge on the `Output to Chat` node, which returns the final answer 
 - Docker with Docker Compose v2
 - A Kaggle account and its API key
 - A Google Gemini API key (the project uses Gemini 3.6 Flash)
-- A Prior Labs API key for TabPFN-3 (ux.priorlabs.ai)
+- A Prior Labs API key for TabPFN-3 ([ux.priorlabs.ai](ux.priorlabs.ai))
 
 ## Quick start
 
